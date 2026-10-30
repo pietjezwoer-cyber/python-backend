@@ -28,7 +28,6 @@ def list_devices():
 def add_device():
     data = request.json
     name = data.get('name')
-    # deduplicate by name
     for d in devices:
         if d.get('name') == name:
             d.update(data)
@@ -108,6 +107,19 @@ def post_file_request():
     file_requests.setdefault(device, []).append(path)
     return jsonify({"ok": True})
 
+@app.route('/api/file_uploads', methods=['GET'])
+def get_file_uploads():
+    device = request.args.get('device')
+    ups = file_uploads.pop(device, [])
+    return jsonify({"uploads": ups})
+
+@app.route('/api/file_uploads', methods=['POST'])
+def post_file_upload():
+    data = request.json
+    device = data.get('device')
+    file_uploads.setdefault(device, []).append(data)
+    return jsonify({"ok": True})
+
 @app.route('/api/file', methods=['GET'])
 def get_file():
     device = request.args.get('device')
@@ -135,7 +147,14 @@ def delete_file():
     key = device + ':' + path
     files.pop(key, None)
     file_data.pop(key, None)
+    file_deletes.setdefault(device, []).append(path)
     return jsonify({"ok": True})
+
+@app.route('/api/file_deletes', methods=['GET'])
+def get_file_deletes():
+    device = request.args.get('device')
+    dels = file_deletes.pop(device, [])
+    return jsonify({"deletes": dels})
 
 @app.route('/api/runfiles', methods=['GET'])
 def get_runfiles():
@@ -176,3 +195,4 @@ def stream(device):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+```
