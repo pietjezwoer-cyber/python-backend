@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "https://python-backend-y3ul.onrender.com"])
+CORS(app, origins=["http://localhost:3000", "http://localhost:3001", "https://python-backend-y3ul.onrender.com"])
 
 devices = []
 frames = {}
