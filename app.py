@@ -9,11 +9,12 @@ frames = {}
 commands = {}
 cmd_results = {}
 processes = {}
-files = {}          # "device:path" -> list of {name, type, size}
-file_requests = {}  # device -> list of pending paths
-file_uploads = {}   # device -> list of {path, content}
-file_deletes = {}   # device -> list of paths
-file_data = {}      # "device:path" -> base64 content
+files = {}
+file_requests = {}
+file_uploads = {}
+file_deletes = {}
+file_data = {}
+runfiles = {}
 
 @app.route('/')
 def home():
@@ -25,7 +26,14 @@ def list_devices():
 
 @app.route('/api/devices', methods=['POST'])
 def add_device():
-    devices.append(request.json)
+    data = request.json
+    name = data.get('name')
+    # deduplicate by name
+    for d in devices:
+        if d.get('name') == name:
+            d.update(data)
+            return jsonify({"ok": True})
+    devices.append(data)
     return jsonify({"ok": True})
 
 @app.route('/api/command', methods=['POST'])
@@ -73,7 +81,6 @@ def get_files():
     path = request.args.get('path', '.')
     key = device + ':' + path
     if key not in files:
-        # request a listing from the viewer
         file_requests.setdefault(device, []).append(path)
         return jsonify({"files": []})
     return jsonify({"files": files.get(key, [])})
@@ -100,25 +107,6 @@ def post_file_request():
     path = data.get('path', '.')
     file_requests.setdefault(device, []).append(path)
     return jsonify({"ok": True})
-
-@app.route('/api/file_uploads', methods=['GET'])
-def get_file_uploads():
-    device = request.args.get('device')
-    ups = file_uploads.pop(device, [])
-    return jsonify({"uploads": ups})
-
-@app.route('/api/file_uploads', methods=['POST'])
-def post_file_upload():
-    data = request.json
-    device = data.get('device')
-    file_uploads.setdefault(device, []).append(data)
-    return jsonify({"ok": True})
-
-@app.route('/api/file_deletes', methods=['GET'])
-def get_file_deletes():
-    device = request.args.get('device')
-    dels = file_deletes.pop(device, [])
-    return jsonify({"deletes": dels})
 
 @app.route('/api/file', methods=['GET'])
 def get_file():
@@ -147,7 +135,19 @@ def delete_file():
     key = device + ':' + path
     files.pop(key, None)
     file_data.pop(key, None)
-    file_deletes.setdefault(device, []).append(path)
+    return jsonify({"ok": True})
+
+@app.route('/api/runfiles', methods=['GET'])
+def get_runfiles():
+    device = request.args.get('device')
+    rf = runfiles.pop(device, [])
+    return jsonify({"runfiles": rf})
+
+@app.route('/api/runfiles', methods=['POST'])
+def post_runfile():
+    data = request.json
+    device = data.get('device')
+    runfiles.setdefault(device, []).append(data)
     return jsonify({"ok": True})
 
 @app.route('/api/frame', methods=['POST'])
@@ -176,3 +176,4 @@ def stream(device):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+```
