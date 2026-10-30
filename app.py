@@ -24,11 +24,15 @@ def home():
 def list_devices():
     return jsonify(devices)
 
-@app.route('/api/devices', methods=['DELETE'])
-def remove_device():
-    name = request.args.get('name')
-    global devices
-    devices = [d for d in devices if d.get('name') != name]
+@app.route('/api/devices', methods=['POST'])
+def add_device():
+    data = request.json
+    name = data.get('name')
+    for d in devices:
+        if d.get('name') == name:
+            d.update(data)
+            return jsonify({"ok": True})
+    devices.append(data)
     return jsonify({"ok": True})
 
 @app.route('/api/command', methods=['POST'])
