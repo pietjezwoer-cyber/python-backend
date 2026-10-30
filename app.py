@@ -9,7 +9,8 @@ frames = {}
 commands = {}
 cmd_results = {}
 processes = {}
-files = {}
+files = {}       # "device:path" -> list of {name, type, size}
+file_data = {}   # "device:path" -> base64 content
 
 @app.route('/')
 def home():
@@ -79,6 +80,35 @@ def post_files():
     files[key] = data.get('files', [])
     return jsonify({"ok": True})
 
+@app.route('/api/file', methods=['GET'])
+def get_file():
+    device = request.args.get('device')
+    path = request.args.get('path', '')
+    key = device + ':' + path
+    content = file_data.get(key)
+    if content is not None:
+        return jsonify({"content": content})
+    return jsonify({"content": None}), 404
+
+@app.route('/api/file', methods=['POST'])
+def post_file():
+    data = request.json
+    device = data.get('device')
+    path = data.get('path', '')
+    content = data.get('content', '')
+    key = device + ':' + path
+    file_data[key] = content
+    return jsonify({"ok": True})
+
+@app.route('/api/file', methods=['DELETE'])
+def delete_file():
+    device = request.args.get('device')
+    path = request.args.get('path', '')
+    key = device + ':' + path
+    files.pop(key, None)
+    file_data.pop(key, None)
+    return jsonify({"ok": True})
+
 @app.route('/api/frame', methods=['POST'])
 def upload_frame():
     data = request.json
@@ -105,3 +135,4 @@ def stream(device):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+```
