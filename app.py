@@ -3,10 +3,10 @@ from flask_cors import CORS
 import time
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000"])
+CORS(app, origins=["http://localhost:3000", "https://python-backend-y3ul.onrender.com"])
 
 devices = []
-frames = {}
+frames = {}  # device name -> base64 jpeg
 
 @app.route('/')
 def home():
@@ -42,5 +42,13 @@ def get_frame():
         return jsonify({"image": img})
     return jsonify({"image": None})
 
+@app.route('/api/stream/<device>', methods=['GET'])
+def stream(device):
+    img = frames.get(device)
+    if img:
+        return jsonify({"image": img})
+    return jsonify({"image": None})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+```
